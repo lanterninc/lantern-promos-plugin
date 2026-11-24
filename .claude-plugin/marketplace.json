@@ -1,0 +1,12 @@
+{
+  "name": "lantern-promos",
+  "description": "Lantern Promos for Claude: discount codes and sale prices while you shop.",
+  "owner": { "name": "Lantern", "url": "https://lantern.is" },
+  "plugins": [
+    {
+      "name": "lantern-promos",
+      "source": "./plugins/lantern-promos",
+      "description": "Finds discount codes and sale prices while you shop. Claude checks Lantern Promos for codes a real cart accepted, products on sale, and a link that opens the store with the code applied."
+    }
+  ]
+}
