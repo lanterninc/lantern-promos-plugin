@@ -10,6 +10,7 @@ import { MCP_URL } from '../scripts/tools.mjs';
 import { validate } from '../scripts/validate.mjs';
 
 const SCRIPT = fileURLToPath(new URL('../scripts/validate.mjs', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PLUGIN = 'plugins/lantern-promos';
 const EM = String.fromCharCode(0x2014);
 const EN_ENTITY = '&' + 'ndash;';
@@ -159,4 +160,8 @@ test('the command exits 0 on a repo with no problems', () => {
   const run = spawnSync(process.execPath, [SCRIPT, makeRepo()], { encoding: 'utf8' });
   assert.equal(run.status, 0);
   assert.equal(run.stdout, 'No problems found.\n');
+});
+
+test('this repo has no problems', () => {
+  assert.deepEqual(validate(REPO_ROOT), []);
 });
