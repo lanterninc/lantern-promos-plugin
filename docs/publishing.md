@@ -29,3 +29,5 @@ Submit at https://claude.ai/directory/manage as a **Plugin bundle**: source `lan
 `scripts/tools.mjs` pins the server address and the tool names the skill and commands may use. When the Lantern Promos server adds, renames or removes a tool, update that list and the wording together.
 
 `npm run check:live` exits 1 when the server no longer has a pinned tool, and 2 when the server could not be asked at all, which says nothing about the tools. The `live` workflow runs it every week and on every push to `main`.
+
+GitHub pauses a scheduled workflow in a public repo after 60 days with no commits. When the repo has been quiet that long, turn `live` back on in the Actions tab, or run `npm run check:live` by hand. A failed scheduled run emails whoever last changed the schedule line in `live.yml`.

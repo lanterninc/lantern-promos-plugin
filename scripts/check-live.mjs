@@ -2,7 +2,7 @@
 // Asks the live Lantern Promos tool server for its tools and compares them with the names this plugin uses.
 // Exit 0: every pinned tool is served. Exit 1: the server no longer has a pinned tool. Exit 2: the server could
 // not be asked, which says nothing about the tools either way.
-import { pathToFileURL } from 'node:url';
+import { isMain } from './is-main.mjs';
 import { MCP_URL, TOOLS } from './tools.mjs';
 
 const TIMEOUT_MS = 30_000;
@@ -56,4 +56,4 @@ async function main() {
   process.exitCode = missing.length ? 1 : 0;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+if (isMain(import.meta.url)) await main();

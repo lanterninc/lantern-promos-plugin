@@ -4,7 +4,8 @@
 // dashes (or the HTML entities that render as them) in any text file.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { isMain } from './is-main.mjs';
 import { MCP_SERVER_KEY, MCP_URL, TOOLS } from './tools.mjs';
 
 const SKIPPED_DIRS = new Set(['.git', 'node_modules']);
@@ -137,6 +138,8 @@ function checkManifest(rootDir, plugin, problems) {
   for (const key of ['homepage', 'privacyPolicyUrl']) {
     if (!isHttps(manifest[key])) problem(`${key} must be an https address`);
   }
+  // Claude Code also loads connectors declared in the manifest, where checkConnector would never see them.
+  if (manifest.mcpServers !== undefined) problem('mcpServers must not be set here, the connector lives in .mcp.json');
 }
 
 function checkConnector(rootDir, plugin, problems) {
@@ -299,4 +302,4 @@ function main() {
   process.exitCode = problems.length ? 1 : 0;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (isMain(import.meta.url)) main();

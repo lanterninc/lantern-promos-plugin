@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compareTools, fetchToolNames, toolNamesFrom } from '../scripts/check-live.mjs';
 import { TOOLS } from '../scripts/tools.mjs';
@@ -58,9 +61,9 @@ test('a refused request throws with the status', async () => {
 
 // The command, run against a local server. execFile is asynchronous on purpose: the server below lives in this
 // process, and a synchronous spawn would block it from answering.
-function runCommand(url) {
+function runCommand(url, script = SCRIPT) {
   return new Promise((resolve) => {
-    execFile(process.execPath, [SCRIPT, url], (error, stdout, stderr) => resolve({ status: error ? error.code : 0, stdout, stderr }));
+    execFile(process.execPath, [script, url], (error, stdout, stderr) => resolve({ status: error ? error.code : 0, stdout, stderr }));
   });
 }
 
@@ -113,5 +116,18 @@ test('the command exits 2 when the answer is not JSON', async () => {
   } finally {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('the command still runs when it is started through a symlinked folder', async () => {
+  const holder = mkdtempSync(join(tmpdir(), 'promos-plugin-link-'));
+  try {
+    const link = join(holder, 'repo');
+    symlinkSync(fileURLToPath(new URL('..', import.meta.url)), link);
+    const run = await withServer(200, listAnswer('find_deals', 'get_apply_link'), (url) => runCommand(url, join(link, 'scripts/check-live.mjs')));
+    assert.equal(run.status, 1);
+    assert.match(run.stderr, /The server no longer has find_store_coupons, which the plugin names\./);
+  } finally {
+    rmSync(holder, { recursive: true, force: true });
   }
 });
