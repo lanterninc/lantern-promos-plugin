@@ -1,0 +1,27 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: npm test
+      - name: Check the repo
+        run: npm run validate
+      - name: Install Claude Code
+        # Pinned so the validation cannot change between runs without a change to this repo.
+        run: npm install --global @anthropic-ai/claude-code@2.1.285
+      - name: Validate the marketplace and the plugin
+        run: |
+          claude plugin validate . --strict
+          claude plugin validate ./plugins/lantern-promos --strict
