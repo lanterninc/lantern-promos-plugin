@@ -10,6 +10,14 @@ In Claude Code (2.1.275 or later):
 /plugin install lantern-promos --marketplace lanterninc/lantern-promos-plugin
 ```
 
+In Perplexity, open **Plugins**, select **Add custom**, then **Import plugin from GitHub**, and paste the plugin folder's address:
+
+```
+https://github.com/lanterninc/lantern-promos-plugin/tree/main/plugins/lantern-promos
+```
+
+Paste the folder, not the repo: the repo's root holds the marketplace, not a plugin. Perplexity reads the same `plugin.json` and connector as Claude Code. More in [docs/publishing.md](docs/publishing.md#perplexity).
+
 What it does and how to use it: [plugins/lantern-promos/README.md](plugins/lantern-promos/README.md).
 
 ## What is in this repo

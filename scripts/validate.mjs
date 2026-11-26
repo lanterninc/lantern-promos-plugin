@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Checks the repo before a release or a directory submission: the marketplace, the plugin manifest, the connector,
-// the icon, the listing README, skill and command frontmatter, the tool names the wording uses, and no em or en
-// dashes (or the HTML entities that render as them) in any text file.
+// the icon, the listing README, skill and command frontmatter, the tool names the wording uses, Perplexity's limits
+// for a plugin package, and no em or en dashes (or the HTML entities that render as them) in any text file.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +27,11 @@ const ICON_MIN = 512;
 const ICON_MAX = 2048;
 const ICON_MAX_BYTES = 2 * 1024 * 1024;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+// Perplexity's limits for a plugin package. Its help center gives 20 MB uncompressed, read here as the smaller 20,000,000 bytes.
+const PERPLEXITY_MAX_DESCRIPTION = 1024;
+const PERPLEXITY_MAX_SKILLS = 32;
+const PERPLEXITY_MAX_FILES = 1000;
+const PERPLEXITY_MAX_BYTES = 20 * 1000 * 1000;
 // A tool name in backticks: lower case words joined by underscores, with or without a connector prefix that ends in "__".
 const TOOL_MENTION = /`(?:[A-Za-z0-9_-]+__)?([a-z]+(?:_[a-z]+)+)`/g;
 
@@ -130,6 +135,10 @@ function checkManifest(rootDir, plugin, problems) {
   for (const key of ['name', 'displayName', 'description', 'license']) {
     if (!isText(manifest[key])) problem(`${key} is missing`);
   }
+  // Perplexity reads this same file when a package has no plugin.json at its root.
+  if (isText(manifest.description) && manifest.description.length > PERPLEXITY_MAX_DESCRIPTION) {
+    problem(`description exceeds ${PERPLEXITY_MAX_DESCRIPTION} characters, the most Perplexity accepts`);
+  }
   if (isText(manifest.name) && manifest.name !== plugin.name) problem('name must equal the marketplace entry name');
   if (!isText(manifest.author?.name)) problem('author.name is missing');
   if (typeof manifest.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(manifest.version)) {
@@ -156,7 +165,32 @@ function checkConnector(rootDir, plugin, problems) {
   const server = servers[MCP_SERVER_KEY];
   if (server?.type !== 'http') problem('the server type must be http');
   // An exact match, so an address with a variable, a user name or another host can never reach the directory.
+  // It also meets Perplexity's rules: a remote https server with a type, no fixed headers and no variable placeholders.
   if (server?.url !== MCP_URL) problem(`the server url must be ${MCP_URL}`);
+}
+
+/**
+ * Checks what Perplexity needs to install the plugin folder as it is. Perplexity reads plugin.json and mcp.json at the
+ * package root first, so either file there would stand in for the Claude Code files this repo checks and keeps.
+ */
+function checkPerplexity(rootDir, plugin, problems) {
+  const shadows = [
+    ['plugin.json', 'must not exist, Perplexity would read it in place of .claude-plugin/plugin.json'],
+    ['mcp.json', 'must not exist, the connector lives in .mcp.json'],
+  ];
+  for (const [name, message] of shadows) {
+    if (existsSync(join(plugin.dir, name))) problems.push({ file: rel(rootDir, join(plugin.dir, name)), line: 0, message });
+  }
+
+  const folder = rel(rootDir, plugin.dir);
+  const problem = (message) => problems.push({ file: folder, line: 0, message });
+  const skillsDir = join(plugin.dir, 'skills');
+  const skills = existsSync(skillsDir) ? readdirSync(skillsDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).length : 0;
+  if (skills > PERPLEXITY_MAX_SKILLS) problem(`holds ${skills} skills, Perplexity accepts up to ${PERPLEXITY_MAX_SKILLS}`);
+  const files = walk(plugin.dir);
+  if (files.length > PERPLEXITY_MAX_FILES) problem(`holds ${files.length} files, Perplexity accepts up to ${PERPLEXITY_MAX_FILES}`);
+  const bytes = files.reduce((total, path) => total + statSync(path).size, 0);
+  if (bytes > PERPLEXITY_MAX_BYTES) problem(`is over ${PERPLEXITY_MAX_BYTES} bytes, more than Perplexity accepts`);
 }
 
 function checkIcon(rootDir, plugin, problems) {
@@ -287,6 +321,7 @@ export function validate(rootDir) {
     checkIcon(rootDir, plugin, problems);
     checkListingReadme(rootDir, plugin, problems);
     checkWording(rootDir, plugin, problems);
+    checkPerplexity(rootDir, plugin, problems);
   }
   checkDashes(rootDir, problems);
   return problems;

@@ -90,6 +90,13 @@ function makeRepo(changes = {}) {
 
 const messages = (root) => validate(root).map((problem) => `${problem.file}: ${problem.message}`);
 
+/** Extra skill folders beside the one the good repo has. */
+const manySkills = (count) => Object.fromEntries(
+  Array.from({ length: count }, (_, index) => [`${PLUGIN}/skills/skill-${index}/SKILL.md`, skill(`skill-${index}`, 'Use when someone is buying something online.')]),
+);
+/** Extra files beside the six the good repo's plugin folder has. */
+const manyFiles = (count) => Object.fromEntries(Array.from({ length: count }, (_, index) => [`${PLUGIN}/assets/file-${index}.txt`, 'x\n']));
+
 // Each case: what it proves, the one change that breaks the good repo, and every problem expected, in order.
 const CASES = [
   ['a well-formed repo has no problems', {}, []],
@@ -114,6 +121,8 @@ const CASES = [
   ['a manifest with no author name is reported', { [MANIFEST_FILE]: json({ ...MANIFEST, author: { url: 'https://lantern.is' } }) }, [`${MANIFEST_FILE}: author.name is missing`]],
   ['a homepage that is not https is reported', { [MANIFEST_FILE]: json({ ...MANIFEST, homepage: 'http://lanternpromos.com' }) }, [`${MANIFEST_FILE}: homepage must be an https address`]],
   ['a connector declared in the manifest is reported', { [MANIFEST_FILE]: json({ ...MANIFEST, mcpServers: { other: { type: 'http', url: 'https://example.com/mcp' } } }) }, [`${MANIFEST_FILE}: mcpServers must not be set here, the connector lives in .mcp.json`]],
+  ['a description over Perplexity\'s 1024 characters is reported', { [MANIFEST_FILE]: json({ ...MANIFEST, description: 'x'.repeat(1025) }) }, [`${MANIFEST_FILE}: description exceeds 1024 characters, the most Perplexity accepts`]],
+  ['a description of exactly 1024 characters passes', { [MANIFEST_FILE]: json({ ...MANIFEST, description: 'x'.repeat(1024) }) }, []],
 
   ['a second connector is reported', { [CONNECTOR_FILE]: json({ mcpServers: { ...CONNECTOR.mcpServers, other: { type: 'http', url: 'https://example.com/mcp' } } }) }, [`${CONNECTOR_FILE}: mcpServers must hold exactly one server, named lantern-promos`]],
   ['a connector address with a variable is reported', { [CONNECTOR_FILE]: json({ mcpServers: { 'lantern-promos': { type: 'http', url: '${PROMOS_MCP_URL:-https://mcp.lanternpromos.com/mcp}' } } }) }, [`${CONNECTOR_FILE}: the server url must be ${MCP_URL}`]],
@@ -152,6 +161,14 @@ const CASES = [
   ['a tool named with its connector prefix is still checked', { [COMMAND_FILE]: command('Call `mcp__plugin_lantern-promos_lantern-promos__find_everything`.') }, [`${COMMAND_FILE}: find_everything is not a tool in scripts/tools.mjs`]],
   ['a pinned tool named with its connector prefix passes', { [COMMAND_FILE]: command('Call `mcp__plugin_lantern-promos_lantern-promos__find_deals`.') }, []],
   ['a pinned tool that no skill names is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', 'Call `find_store_coupons` or `find_deals`.') }, [`${PLUGIN}/skills: no skill names the tool get_apply_link`]],
+
+  ['a plugin.json at the plugin root is reported, since Perplexity would read it first', { [`${PLUGIN}/plugin.json`]: json(MANIFEST) }, [`${PLUGIN}/plugin.json: must not exist, Perplexity would read it in place of .claude-plugin/plugin.json`]],
+  ['an mcp.json at the plugin root is reported', { [`${PLUGIN}/mcp.json`]: json(CONNECTOR) }, [`${PLUGIN}/mcp.json: must not exist, the connector lives in .mcp.json`]],
+  ['more skills than Perplexity accepts is reported', manySkills(32), [`${PLUGIN}: holds 33 skills, Perplexity accepts up to 32`]],
+  ['as many skills as Perplexity accepts passes', manySkills(31), []],
+  ['more files than Perplexity accepts is reported', manyFiles(995), [`${PLUGIN}: holds 1001 files, Perplexity accepts up to 1000`]],
+  ['as many files as Perplexity accepts passes', manyFiles(994), []],
+  ['a plugin larger than Perplexity accepts is reported', { [`${PLUGIN}/assets/large.bin`]: Buffer.alloc(20 * 1000 * 1000) }, [`${PLUGIN}: is over 20000000 bytes, more than Perplexity accepts`]],
 
   ['an em dash is reported', { [README_FILE]: `${README}A line ${EM} with a dash.\n` }, [`${README_FILE}: em dash (U+2014)`]],
   ['a dash entity is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', `Wait 1${EN_ENTITY}2 minutes. ${ALL_TOOLS}`) }, [`${SKILL_FILE}: en dash entity`]],

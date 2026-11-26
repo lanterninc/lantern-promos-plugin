@@ -15,3 +15,12 @@ Load the plugin from a checkout with `claude --plugin-dir ./plugins/lantern-prom
    - Claude calls `find_deals` and lists deals with their codes and links.
 
 If Claude did not call the tool, or left part of the reply out, open an issue with the exact request and what Claude said.
+
+## Perplexity
+
+Import the plugin as [publishing.md](publishing.md#perplexity) describes. To try a branch before it is merged, paste its folder address, with the branch name in place of `main`. Then, in a new Perplexity Computer session:
+
+1. Run steps 1 and 2 above. Perplexity's answer should do the same as Claude's.
+2. If Perplexity says Lantern Promos is not connected, connect it under **Plugins** and run step 1 again.
+
+Perplexity plugins carry skills and connectors, not commands, so skip steps 3 and 4 there.

@@ -19,7 +19,7 @@ Each tool's own description says what to send and what the answer means. Follow 
 
 Check each store once per conversation, before you recommend where to buy or go to checkout, and remember the result.
 
-If the tools are not available, say Lantern Promos is not connected and how to connect it (in Claude Code, run `/mcp`). Do not answer from memory in their place.
+If the tools are not available, say Lantern Promos is not connected and how to connect it (in Claude Code, run `/mcp`; in other apps, open their connector or plugin settings). Do not answer from memory in their place.
 
 ## While you wait
 
