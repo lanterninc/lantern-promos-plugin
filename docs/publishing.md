@@ -30,7 +30,15 @@ Perplexity installs the plugin folder as it is. With no `plugin.json` at a packa
 
 `npm run validate` checks Perplexity's limits: up to 32 skills, 1,000 files and 20 MB in the plugin folder. It also checks that no `plugin.json` or `mcp.json` sits at the folder's root, where Perplexity would read it ahead of the Claude Code files.
 
-To install it for yourself, open **Plugins**, select **Add custom**, then **Import plugin from GitHub**, and paste `https://github.com/lanterninc/lantern-promos-plugin/tree/main/plugins/lantern-promos`. Only public repos can be imported, and the folder address is needed because the repo's root has no plugin. To install it for an organization, an admin uploads a `.zip` under **Organization settings**, **Plugins and skills**, **Upload plugin**:
+### The repo's own address
+
+Perplexity imports only what sits at the root of the address you paste, so the repo's root holds copies of the plugin's files: `plugin.json` (of `.claude-plugin/plugin.json`), `mcp.json` (of `.mcp.json`) and `skills/`. Without them, the repo's address fails with "The bundle must contain one readable plugin.json at its root". They have to be real copies, which was tried on a Perplexity account: it ignores manifest fields that point into `plugins/lantern-promos/`, and it does not follow symbolic links. Claude Code installs from `plugins/lantern-promos/` and does not read these root copies.
+
+After changing the plugin's manifest, connector or skills, run `npm run sync:root`. `npm run validate` fails while any copy differs from its source. The commands are not copied, since Perplexity has none.
+
+### Installing
+
+To install it for yourself, open **Plugins**, select **Add custom**, then **Import plugin from GitHub**, and paste `https://github.com/lanterninc/lantern-promos-plugin`. The folder's address, `https://github.com/lanterninc/lantern-promos-plugin/tree/main/plugins/lantern-promos`, works too. Only public repos can be imported. A branch name in the address cannot hold a slash, which Perplexity reads as a folder. If Perplexity answers "A plugin with this name already exists in this scope", the plugin is already installed, so delete it under **Plugins** before importing it again. To install it for an organization, an admin uploads a `.zip` under **Organization settings**, **Plugins and skills**, **Upload plugin**:
 
 ```bash
 cd plugins && zip -r ../lantern-promos.zip lantern-promos -x '*.DS_Store'

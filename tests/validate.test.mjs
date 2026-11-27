@@ -66,6 +66,14 @@ const README_FILE = `${PLUGIN}/README.md`;
 const SKILL_FILE = `${PLUGIN}/skills/find-things/SKILL.md`;
 const COMMAND_FILE = `${PLUGIN}/commands/deals.md`;
 
+const isRootCopy = (path) => path === 'plugin.json' || path === 'mcp.json' || path.startsWith('skills/');
+/** The root copies of the good repo's plugin files, for tests that set the root copies themselves. */
+const ROOT_COPIES = {
+  'plugin.json': json(MANIFEST),
+  'mcp.json': json(CONNECTOR),
+  'skills/find-things/SKILL.md': skill('find-things', 'Use when someone is buying something online.'),
+};
+
 /** A small repo that passes every check. A test changes one file to break one rule; null removes a file. */
 function makeRepo(changes = {}) {
   const root = mkdtempSync(join(tmpdir(), 'promos-plugin-validate-'));
@@ -80,6 +88,15 @@ function makeRepo(changes = {}) {
     [COMMAND_FILE]: command('Call `find_deals`.'),
     ...changes,
   };
+  // The root copies follow the plugin's files, so a test that breaks a plugin file breaks one rule, not two.
+  // A test that sets any root copy itself gets no automatic copies at all.
+  if (!Object.keys(changes).some(isRootCopy)) {
+    files['plugin.json'] = files[MANIFEST_FILE];
+    files['mcp.json'] = files[CONNECTOR_FILE];
+    for (const [path, content] of Object.entries(files)) {
+      if (path.startsWith(`${PLUGIN}/skills/`)) files[path.slice(PLUGIN.length + 1)] = content;
+    }
+  }
   for (const [path, content] of Object.entries(files)) {
     if (content === null) continue;
     mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -170,12 +187,20 @@ const CASES = [
   ['as many files as Perplexity accepts passes', manyFiles(994), []],
   ['a plugin larger than Perplexity accepts is reported', { [`${PLUGIN}/assets/large.bin`]: Buffer.alloc(20 * 1000 * 1000) }, [`${PLUGIN}: is over 20000000 bytes, more than Perplexity accepts`]],
 
+  ['the root copies set by hand pass when they match', ROOT_COPIES, []],
+  ['a missing root plugin.json is reported', { ...ROOT_COPIES, 'plugin.json': null }, [`plugin.json: must be a copy of ${MANIFEST_FILE}, run npm run sync:root`]],
+  ['a root plugin.json that differs is reported', { ...ROOT_COPIES, 'plugin.json': json({ ...MANIFEST, version: '0.2.0' }) }, [`plugin.json: must be a copy of ${MANIFEST_FILE}, run npm run sync:root`]],
+  ['a root mcp.json that differs is reported', { ...ROOT_COPIES, 'mcp.json': json({ mcpServers: {} }) }, [`mcp.json: must be a copy of ${CONNECTOR_FILE}, run npm run sync:root`]],
+  ['a missing root skill is reported', { ...ROOT_COPIES, 'skills/find-things/SKILL.md': null }, [`skills/find-things/SKILL.md: must be a copy of ${SKILL_FILE}, run npm run sync:root`]],
+  ['a root skill that differs is reported', { ...ROOT_COPIES, 'skills/find-things/SKILL.md': skill('find-things', 'Use when shopping.') }, [`skills/find-things/SKILL.md: must be a copy of ${SKILL_FILE}, run npm run sync:root`]],
+  ['a root skill file the plugin does not have is reported', { ...ROOT_COPIES, 'skills/old-skill/SKILL.md': 'x\n' }, [`skills/old-skill/SKILL.md: is not in ${PLUGIN}/skills, run npm run sync:root`]],
+
   ['an em dash is reported', { [README_FILE]: `${README}A line ${EM} with a dash.\n` }, [`${README_FILE}: em dash (U+2014)`]],
-  ['a dash entity is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', `Wait 1${EN_ENTITY}2 minutes. ${ALL_TOOLS}`) }, [`${SKILL_FILE}: en dash entity`]],
+  ['a dash entity is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', `Wait 1${EN_ENTITY}2 minutes. ${ALL_TOOLS}`) }, [`${SKILL_FILE}: en dash entity`, `skills/find-things/SKILL.md: en dash entity`]],
   ['an en dash is reported', { [README_FILE]: `${README}Open 9${EN}5.\n` }, [`${README_FILE}: en dash (U+2013)`]],
-  ['an em dash entity is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', `Wait${EM_ENTITY}then call. ${ALL_TOOLS}`) }, [`${SKILL_FILE}: em dash entity`]],
-  ['a numbered em dash entity is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', `Wait${EM_ENTITY_NUMBERED}then call. ${ALL_TOOLS}`) }, [`${SKILL_FILE}: em dash entity`]],
-  ['a hex en dash entity is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', `Wait 1${EN_ENTITY_HEX}2 minutes. ${ALL_TOOLS}`) }, [`${SKILL_FILE}: en dash entity`]],
+  ['an em dash entity is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', `Wait${EM_ENTITY}then call. ${ALL_TOOLS}`) }, [`${SKILL_FILE}: em dash entity`, `skills/find-things/SKILL.md: em dash entity`]],
+  ['a numbered em dash entity is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', `Wait${EM_ENTITY_NUMBERED}then call. ${ALL_TOOLS}`) }, [`${SKILL_FILE}: em dash entity`, `skills/find-things/SKILL.md: em dash entity`]],
+  ['a hex en dash entity is reported', { [SKILL_FILE]: skill('find-things', 'Use when someone is buying something online.', `Wait 1${EN_ENTITY_HEX}2 minutes. ${ALL_TOOLS}`) }, [`${SKILL_FILE}: en dash entity`, `skills/find-things/SKILL.md: en dash entity`]],
 ];
 
 for (const [name, changes, expected] of CASES) {
