@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Checks the repo before a release or a directory submission: the marketplace, the plugin manifest, the connector,
 // the icon, the listing README, skill and command frontmatter, the tool names the wording uses, Perplexity's limits
-// for a plugin package, and no em or en dashes (or the HTML entities that render as them) in any text file.
+// for a plugin package, the root copies Perplexity imports from the repo's own address, and no em or en dashes (or the
+// HTML entities that render as them) in any text file.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -193,6 +194,36 @@ function checkPerplexity(rootDir, plugin, problems) {
   if (bytes > PERPLEXITY_MAX_BYTES) problem(`is over ${PERPLEXITY_MAX_BYTES} bytes, more than Perplexity accepts`);
 }
 
+/**
+ * Checks the copies at the repo root that let Perplexity import the repo's own address. Perplexity reads only real files
+ * at the root: it ignores manifest fields that point into another folder, and it does not follow symbolic links.
+ * So the root holds copies of the plugin's manifest, connector and skills, and each must match its source exactly.
+ */
+function checkRootCopies(rootDir, plugin, problems) {
+  const fix = 'run npm run sync:root';
+  const same = (a, b) => existsSync(a) && existsSync(b) && readFileSync(a).equals(readFileSync(b));
+  const copies = [
+    ['plugin.json', join(plugin.dir, '.claude-plugin/plugin.json')],
+    ['mcp.json', join(plugin.dir, '.mcp.json')],
+  ];
+  for (const [copy, source] of copies) {
+    if (!same(join(rootDir, copy), source)) problems.push({ file: copy, line: 0, message: `must be a copy of ${rel(rootDir, source)}, ${fix}` });
+  }
+
+  const sourceDir = join(plugin.dir, 'skills');
+  const copyDir = join(rootDir, 'skills');
+  const sources = existsSync(sourceDir) ? walk(sourceDir).map((path) => rel(sourceDir, path)) : [];
+  const copied = existsSync(copyDir) ? walk(copyDir).map((path) => rel(copyDir, path)) : [];
+  for (const path of sources) {
+    if (!same(join(copyDir, path), join(sourceDir, path))) {
+      problems.push({ file: `skills/${path}`, line: 0, message: `must be a copy of ${rel(rootDir, join(sourceDir, path))}, ${fix}` });
+    }
+  }
+  for (const path of copied.filter((path) => !sources.includes(path))) {
+    problems.push({ file: `skills/${path}`, line: 0, message: `is not in ${rel(rootDir, sourceDir)}, ${fix}` });
+  }
+}
+
 function checkIcon(rootDir, plugin, problems) {
   const path = join(plugin.dir, '.claude-plugin/icon.png');
   const file = rel(rootDir, path);
@@ -315,7 +346,8 @@ function checkDashes(rootDir, problems) {
 /** @returns {{ file: string, line: number, message: string }[]} */
 export function validate(rootDir) {
   const problems = [];
-  for (const plugin of checkMarketplace(rootDir, problems)) {
+  const plugins = checkMarketplace(rootDir, problems);
+  for (const plugin of plugins) {
     checkManifest(rootDir, plugin, problems);
     checkConnector(rootDir, plugin, problems);
     checkIcon(rootDir, plugin, problems);
@@ -323,6 +355,8 @@ export function validate(rootDir) {
     checkWording(rootDir, plugin, problems);
     checkPerplexity(rootDir, plugin, problems);
   }
+  // The repo root can stand in for one plugin only: the first the marketplace lists.
+  if (plugins.length > 0) checkRootCopies(rootDir, plugins[0], problems);
   checkDashes(rootDir, problems);
   return problems;
 }

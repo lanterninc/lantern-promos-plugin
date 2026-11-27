@@ -1,0 +1,11 @@
+{
+  "name": "lantern-promos",
+  "displayName": "Lantern Promos",
+  "description": "Finds discount codes and sale prices while you shop. Claude checks Lantern Promos for codes a real cart accepted, products on sale, and a link that opens the store with the code applied.",
+  "version": "0.1.0",
+  "author": { "name": "Lantern", "url": "https://lantern.is" },
+  "homepage": "https://lanternpromos.com",
+  "privacyPolicyUrl": "https://lantern.is/shopper-privacy",
+  "repository": "https://github.com/lanterninc/lantern-promos-plugin",
+  "license": "MIT"
+}

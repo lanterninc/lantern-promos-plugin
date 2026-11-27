@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lantern-promos": {
+      "type": "http",
+      "url": "https://mcp.lanternpromos.com/mcp"
+    }
+  }
+}
